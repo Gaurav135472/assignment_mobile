@@ -1,57 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, Button, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  Button,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+} from "react-native";
 
-// Backend API URL
-const API_URL = 'http://localhost:3001'; // Replace 'localhost' with your machine's IP if testing on a physical device
+const API_URL = "/api";
 
 const App = () => {
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [newTask, setNewTask] = useState('');
+  const [newTask, setNewTask] = useState("");
 
-  // Fetch the to-do list from the backend
-  const fetchTodoList = async () => {
+  // Fetch Todos
+  const fetchTodos = async () => {
     try {
       const response = await fetch(`${API_URL}/get-todo`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch to-do list');
-      }
       const data = await response.json();
       setTodos(data);
     } catch (err) {
-      setError('Error fetching to-do list');
-      console.error(err);
+      Alert.alert("Error", "Failed to load todos");
     } finally {
       setLoading(false);
     }
   };
 
-  // Add a new to-do item
+  // Add Todo
   const addTodo = async () => {
-    if (!newTask.trim()) return;
+    if (!newTask.trim()) {
+      Alert.alert("Error", "Task cannot be empty");
+      return;
+    }
 
     try {
       const response = await fetch(`${API_URL}/add-todo`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: newTask }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: newTask.trim() }),
       });
+
       if (!response.ok) {
-        throw new Error('Failed to add to-do item');
+        throw new Error("Failed to add todo");
       }
-      const addedTodo = await response.json();
-      setTodos((prevTodos) => [...prevTodos, addedTodo]);
-      setNewTask('');
+
+      const newTodo = await response.json();
+      setTodos((prev) => [...prev, newTodo]);
+      setNewTask(""); // Clear input field
     } catch (err) {
-      setError('Error adding to-do item');
-      console.error(err);
+      Alert.alert("Error", "Failed to add task");
     }
   };
 
-  // Fetch data when the component mounts
+  // Delete Todo
+  const deleteTodo = async (id) => {
+    try {
+      await fetch(`${API_URL}/delete-todo/${id}`, { method: "DELETE" });
+      setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    } catch (err) {
+      Alert.alert("Error", "Failed to delete task");
+    }
+  };
+
+  // Clear All Todos
+  const clearTodos = async () => {
+    try {
+      await fetch(`${API_URL}/clear-todos`, { method: "DELETE" });
+      setTodos([]);
+    } catch (err) {
+      Alert.alert("Error", "Failed to clear todos");
+    }
+  };
+
   useEffect(() => {
-    fetchTodoList();
+    fetchTodos();
   }, []);
 
   return (
@@ -60,77 +87,47 @@ const App = () => {
 
       {loading ? (
         <ActivityIndicator size="large" color="#0000ff" />
-      ) : error ? (
-        <Text style={styles.error}>{error}</Text>
       ) : (
         <FlatList
           data={todos}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.todoItem}>
-              <Text>
-                {item.task} {item.completed ? '(Completed)' : '(Pending)'}
+              <Text style={item.completed ? styles.completed : styles.task}>
+                {item.task}
               </Text>
+              <TouchableOpacity onPress={() => deleteTodo(item.id)}>
+                <Text style={styles.deleteButton}>Delete</Text>
+              </TouchableOpacity>
             </View>
           )}
         />
       )}
 
-      <View style={styles.addTodoContainer}>
+      <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          placeholder="New task"
+          placeholder="New Task"
           value={newTask}
           onChangeText={setNewTask}
         />
         <Button title="Add" onPress={addTodo} />
       </View>
+
+      <Button title="Clear All" onPress={clearTodos} color="red" />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  error: {
-    color: 'red',
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  todoItem: {
-    backgroundColor: '#fff',
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 5,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  addTodoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    width: '100%',
-  },
-  input: {
-    flex: 1,
-    borderColor: '#ddd',
-    borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    marginRight: 10,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  todoItem: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  task: { flex: 1, fontSize: 16 },
+  completed: { flex: 1, fontSize: 16, textDecorationLine: "line-through", color: "gray" },
+  deleteButton: { color: "red", marginHorizontal: 10 },
+  inputContainer: { flexDirection: "row", alignItems: "center", marginTop: 20 },
+  input: { flex: 1, borderWidth: 1, borderColor: "#ddd", padding: 10, marginRight: 10, borderRadius: 5 },
 });
 
 export default App;

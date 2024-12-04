@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
+  "proxy": "http://10.0.0.61:3001",
   "dependencies": {
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/stack": "^6.3.4",
@@ -30,11 +31,7 @@
   },
   "expo": {
     "sdkVersion": "49.0.0",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "name": "frontend",
     "slug": "frontend",
     "version": "1.0.0",
@@ -48,9 +45,7 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
     },
