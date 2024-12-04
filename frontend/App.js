@@ -1,75 +1,90 @@
-// App.js
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, FlatList, Text, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TextInput, Button, ActivityIndicator, StyleSheet } from 'react-native';
+
+// Backend API URL
+const API_URL = 'http://localhost:3001'; // Replace 'localhost' with your machine's IP if testing on a physical device
 
 const App = () => {
-  const [todos, setTodos] = useState([]); // State to store the list of to-dos
-  const [newTodo, setNewTodo] = useState(''); // State for new to-do input
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newTask, setNewTask] = useState('');
 
-  // Function to fetch the to-do list from the backend
-  const fetchTodoList = () => {
-    fetch('http://localhost:3001/get-todo') // Make sure to use the correct IP address if testing on a device
-      .then(response => response.json())
-      .then(data => setTodos(data)) // Set the todos in state
-      .catch(error => console.error('Error fetching to-do list:', error));
-  };
-
-  // Poll the server every 5 seconds to fetch the latest to-do list
-  useEffect(() => {
-    const interval = setInterval(fetchTodoList, 5000); // Poll every 5 seconds
-
-    // Initial fetch when the page loads
-    fetchTodoList();
-
-    // Cleanup the interval on component unmount
-    return () => clearInterval(interval);
-  }, []);
-
-  // Function to add a new to-do item
-  const addTodo = () => {
-    const task = newTodo.trim();
-    if (task) {
-      fetch('http://localhost:3001/add-todo', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ task }),
-      })
-        .then(response => response.json())
-        .then(newTodo => {
-          console.log('New to-do added:', newTodo);
-          fetchTodoList(); // Refresh the list after adding a new item
-          setNewTodo(''); // Clear input field
-        })
-        .catch(error => console.error('Error adding todo:', error));
+  // Fetch the to-do list from the backend
+  const fetchTodoList = async () => {
+    try {
+      const response = await fetch(`${API_URL}/get-todo`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch to-do list');
+      }
+      const data = await response.json();
+      setTodos(data);
+    } catch (err) {
+      setError('Error fetching to-do list');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Function to render each to-do item in the FlatList
-  const renderItem = ({ item }) => {
-    return (
-      <View style={styles.todoItem}>
-        <Text style={item.completed ? styles.completed : null}>{item.task}</Text>
-      </View>
-    );
+  // Add a new to-do item
+  const addTodo = async () => {
+    if (!newTask.trim()) return;
+
+    try {
+      const response = await fetch(`${API_URL}/add-todo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: newTask }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add to-do item');
+      }
+      const addedTodo = await response.json();
+      setTodos((prevTodos) => [...prevTodos, addedTodo]);
+      setNewTask('');
+    } catch (err) {
+      setError('Error adding to-do item');
+      console.error(err);
+    }
   };
+
+  // Fetch data when the component mounts
+  useEffect(() => {
+    fetchTodoList();
+  }, []);
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={newTodo}
-        onChangeText={setNewTodo}
-        placeholder="Add a new to-do"
-      />
-      <Button title="Add To-Do" onPress={addTodo} />
-      <FlatList
-        data={todos}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        style={styles.list}
-      />
+      <Text style={styles.title}>To-Do List</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : error ? (
+        <Text style={styles.error}>{error}</Text>
+      ) : (
+        <FlatList
+          data={todos}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.todoItem}>
+              <Text>
+                {item.task} {item.completed ? '(Completed)' : '(Pending)'}
+              </Text>
+            </View>
+          )}
+        />
+      )}
+
+      <View style={styles.addTodoContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="New task"
+          value={newTask}
+          onChangeText={setNewTask}
+        />
+        <Button title="Add" onPress={addTodo} />
+      </View>
     </View>
   );
 };
@@ -77,26 +92,44 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
     padding: 20,
   },
-  input: {
-    height: 40,
-    borderColor: 'gray',
-    borderWidth: 1,
-    marginBottom: 10,
-    paddingLeft: 8,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
-  list: {
-    marginTop: 20,
+  error: {
+    color: 'red',
+    fontSize: 16,
+    marginBottom: 20,
   },
   todoItem: {
+    backgroundColor: '#fff',
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    marginBottom: 10,
+    borderRadius: 5,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  completed: {
-    textDecorationLine: 'line-through',
-    color: 'gray',
+  addTodoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    width: '100%',
+  },
+  input: {
+    flex: 1,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 10,
+    marginRight: 10,
+    backgroundColor: '#fff',
   },
 });
 
